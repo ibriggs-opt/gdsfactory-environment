@@ -81,5 +81,8 @@ for iL in range(len(MMI_LENGTH)):
         MMI_arr[iL][iw].movex(pitch_x*iw)
         MMI_arr[iL][iw].movey(pitch_y*iL)
 
-MMI_die.show()
 
+#save gds in gds directory
+MMI_die.write_gds("gds files\MMI_basic.gds")
+
+MMI_die.show()

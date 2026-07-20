@@ -27,6 +27,77 @@ def mmi2x2(width_mmi: float, #width of MMI
     c = gf.components.mmi2x2(width_taper=width_taper, length_taper=length_taper, length_mmi=length_mmi, width_mmi=width_mmi, gap_mmi=gap_mmi, cross_section=cross_section).copy()
     return c
 
+def amzi_2x2(mmi: gf.Component, #mmi object to use 
+             spiral_length: float = 100.0, #length of spiral to use for delay line
+             spiral_spacing: float = 3, #spacing between adjacent wvgds in spiral
+             n_spiral: int = 6, #number of loops for spiral
+             sep_length: float = 100.0, #seperation between MMIs
+             cross_section: gf.cross_section.CrossSectionSpec = "strip",
+             ):
+    c = gf.Component()
+
+    mmi1 = c << mmi.copy()
+    mmi2 = c << mmi.copy()
+
+    left_side = mmi2.ports["o1"].x
+    right_side = mmi1.ports["o4"].x
+
+    mmi1.movex(-sep_length/2 - right_side)
+    mmi2.movex(sep_length/2 - left_side)
+
+    #bottom path of amzi
+    s1 = gf.components.bend_s(size=(20.0, -1.8), npoints = 99,cross_section = cross_section)
+    s2 = gf.components.bend_s(size=(20.0, 1.8), npoints = 99,cross_section = cross_section)
+
+    s1_length = s1.info['length']
+    s2_length = s2.info['length']
+
+    s_left = c << s1
+    s_right = c << s2
+
+    s_left.connect("o1", mmi1.ports["o4"], allow_layer_mismatch=True)
+    s_right.connect("o2", mmi2.ports["o1"], allow_layer_mismatch=True)
+
+    route = gf.routing.route_single(c,s_left.ports["o2"], s_right.ports["o1"], cross_section=cross_section)
+
+    length_con = route.length/1000 #um
+    
+
+    length_lower = s1_length + length_con + s2_length
+
+    #upper path of amzi
+    Spiral = gf.components.spiral(length=spiral_length, 
+                                   bend='bend_euler', straight='straight', 
+                                   cross_section=cross_section, 
+                                   spacing=spiral_spacing, 
+                                   n_loops=n_spiral).copy()
+    
+    sp_length = Spiral.info['length'] #um
+    
+    sp = c << Spiral
+    
+    sp.rotate(-90)
+    sp.movex(-sp.ports["o2"].x - 20.0)
+    sp.movey(-sp.ports["o2"].y + 35.0)
+
+    route1 = gf.routing.route_single(c, mmi1.ports["o3"], sp.ports["o2"], cross_section=cross_section )
+    route2 = gf.routing.route_single(c, mmi2.ports["o2"], sp.ports["o1"], cross_section=cross_section )
+
+    r1_length = route1.length/1000 #um
+    r2_length = route2.length/1000 #um 
+
+    length_upper = r1_length + sp_length + r2_length #um, length of upper arm 
+
+    dL = length_upper - length_lower
+
+    #configure ports
+    c.add_port("o1", port=mmi1.ports["o1"])
+    c.add_port("o2", port=mmi1.ports["o2"])
+    c.add_port("o3", port=mmi2.ports["o3"])
+    c.add_port("o4", port=mmi2.ports["o4"])
+
+    return c, dL
+    
 
 def loopback( pitch: float = 127.0,
              length: float = 50, 

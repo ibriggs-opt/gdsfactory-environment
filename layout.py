@@ -61,6 +61,42 @@ def MMI_basic_test(width_mmi: float, #width of mmi section
     return c
 
 
+def MMI_amzi_test(width_mmi: float, #width of mmi section
+                   length_mmi: float, #length of mmi section
+                   include_label: bool = True, #if include device label 
+                ) -> gf.Component:
+    c = gf.Component()
+
+    gr_array = c << cp.grate_coupler_array(gr=gr,cross_section=CS)
+
+    mmi = cp.mmi2x2(width_mmi=width_mmi, length_mmi= length_mmi, cross_section=CS)
+
+    amzi, dL = cp.amzi_2x2(mmi=mmi,spiral_length=20.0,sep_length=200.0,cross_section=CS)
+
+    amzi = c << amzi
+
+    amzi.movey(100.0)
+
+    ports1 = [gr_array.ports[f"o{i}"] for i in [1,2]]
+    ports2 = [amzi.ports[f"o{i}"] for i in [2,1]]
+    gf.routing.route_bundle(component=c, ports1=ports1, ports2=ports2, cross_section=CS, separation=1)
+
+    ports1 = [gr_array.ports[f"o{i}"] for i in [3,4]]
+    ports2 = [amzi.ports[f"o{i}"] for i in [4,3]]
+    gf.routing.route_bundle(component=c, ports1=ports1, ports2=ports2, cross_section=CS, separation=1)
+
+    if include_label: 
+        label_text = f"w_MMI = {width_mmi}, L_MMI = {length_mmi}"
+        lb = c << gf.components.text(text=label_text,
+                                size=10,
+                                justify="center",
+                                layer=layer_label)
+        lb.movey(70.0)
+
+    return c, dL
+
+
+
 """ sweep parameters """
 
 MMI_LENGTH = np.arange(20.0,40.1,5.0)
@@ -71,18 +107,28 @@ pitch_y = 400.0 #um, device pitch in y direction
 
 #array of MMI test objects
 MMI_arr = [[None for _ in range(len(MMI_WIDTH))] for _ in range(len(MMI_LENGTH))] #MMI_arr[ilength][iwidth]
+amzi_arr = [[None for _ in range(len(MMI_WIDTH))] for _ in range(len(MMI_LENGTH))] #MMI_arr[ilength][iwidth]
 
 MMI_die = gf.Component() #collection of MMI test structures
+amzi_die = gf.Component() #collection of amzi test structures
 
 for iL in range(len(MMI_LENGTH)):
     for iw in range(len(MMI_WIDTH)):
         MMI_arr[iL][iw] = MMI_die << MMI_basic_test(width_mmi=MMI_WIDTH[iw], length_mmi=MMI_LENGTH[iL])
+        amzi_add, dL = MMI_amzi_test(width_mmi=MMI_WIDTH[iw],length_mmi=MMI_LENGTH[iL])
+        amzi_arr[iL][iw] = amzi_die << amzi_add
 
         MMI_arr[iL][iw].movex(pitch_x*iw)
         MMI_arr[iL][iw].movey(pitch_y*iL)
 
+        amzi_arr[iL][iw].movex(pitch_x*iw)
+        amzi_arr[iL][iw].movey(pitch_y*iL)
 
+
+print(f"length difference is {dL} um")
 #save gds in gds directory
 MMI_die.write_gds("gds files\MMI_basic.gds")
+amzi_die.write_gds("gds files\MMI_amzi.gds")
 
 MMI_die.show()
+amzi_die.show()

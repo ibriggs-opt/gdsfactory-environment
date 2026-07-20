@@ -71,7 +71,10 @@ def MMI_amzi_test(width_mmi: float, #width of mmi section
 
     mmi = cp.mmi2x2(width_mmi=width_mmi, length_mmi= length_mmi, cross_section=CS)
 
-    amzi, dL = cp.amzi_2x2(mmi=mmi,spiral_length=20.0,sep_length=200.0,cross_section=CS)
+    amzi, dL = cp.amzi_2x2(mmi=mmi,
+                           spiral_length=5.0, n_spiral=2,
+                           sep_length=200.0,
+                           cross_section=CS)
 
     amzi = c << amzi
 
